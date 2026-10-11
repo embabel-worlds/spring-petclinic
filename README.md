@@ -42,7 +42,7 @@ The starter isn't on Maven Central yet, so build it first from [embabel-worlds/p
 
 ```bash
 git clone https://github.com/embabel-worlds/publisher.git
-(cd publisher/libs/java && ./mvnw install)      # or: mvn install
+(cd publisher/libs/java && mvn install)        # needs Maven 3.9+ and Java 17+
 ```
 
 Then run the clinic with a token of your choosing:
