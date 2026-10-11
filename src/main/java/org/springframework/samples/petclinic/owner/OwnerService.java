@@ -21,11 +21,11 @@ import java.util.List;
 import com.embabel.publisher.annotation.RealmLookup;
 import com.embabel.publisher.annotation.RealmQuery;
 import com.embabel.publisher.annotation.RealmVerb;
+import com.embabel.publisher.where.Op;
 import jakarta.validation.constraints.NotNull;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,14 +45,24 @@ public class OwnerService {
 	}
 
 	@RealmLookup(by = "id", maxKeys = 500)
-	public List<OwnerView> byIds(Collection<Integer> ids, Specification<Owner> where) {
-		Specification<Owner> idIn = (root, query, cb) -> root.get("id").in(ids);
-		return this.owners.findAll(idIn.and(where)).stream().map(OwnerView::of).toList();
+	public List<OwnerView> byIds(Collection<Integer> ids) {
+		return this.owners.findAllById(ids).stream().map(OwnerView::of).toList();
 	}
 
+	/**
+	 * What the find-owners screen searches by: the start of a last name. Null finds every
+	 * owner.
+	 */
+	public record OwnerSearch(@RealmQuery.Criterion(property = "lastName", op = Op.PREFIX) String lastNamePrefix) {
+	}
+
+	/**
+	 * The find-owners search, through the repository method the screen already uses.
+	 */
 	@RealmQuery(maxPageSize = 200)
-	public Page<OwnerView> search(Specification<Owner> where, Pageable pageable) {
-		return this.owners.findAll(where, pageable).map(OwnerView::of);
+	public Page<OwnerView> search(OwnerSearch search, Pageable pageable) {
+		String prefix = (search.lastNamePrefix() != null) ? search.lastNamePrefix() : "";
+		return this.owners.findByLastNameStartingWith(prefix, pageable).map(OwnerView::of);
 	}
 
 	/**

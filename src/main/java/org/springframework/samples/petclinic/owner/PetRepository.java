@@ -19,7 +19,6 @@ import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -27,7 +26,7 @@ import org.springframework.data.repository.query.Param;
  * Pets on their own, for the service layer the realm reads through. A pet does not map
  * its owner, so which owner holds which pet is read from the owner's side.
  */
-interface PetRepository extends JpaRepository<Pet, Integer>, JpaSpecificationExecutor<Pet> {
+interface PetRepository extends JpaRepository<Pet, Integer> {
 
 	record Ownership(Integer ownerId, Integer petId) {
 	}

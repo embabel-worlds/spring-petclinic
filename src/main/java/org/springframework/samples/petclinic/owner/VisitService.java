@@ -27,12 +27,13 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Visits, for Embabel worlds: by id and by pet, and booking a new one.
+ * Visits, for Embabel worlds: by id and by pet, and booking a new one. A pet has a
+ * handful of visits, so the publisher applies the world's filter to what the lookups
+ * return.
  */
 @Service
 @Transactional(readOnly = true)
@@ -48,23 +49,21 @@ public class VisitService {
 	}
 
 	@RealmLookup(by = "id", maxKeys = 500)
-	public List<VisitView> byIds(Collection<Integer> ids, Specification<Visit> where, Sort sort) {
-		return views(ids, where, sort, petOfVisit(this.visits.findAttendanceByVisitIds(ids)));
+	public List<VisitView> byIds(Collection<Integer> ids, Sort sort) {
+		return views(ids, sort, petOfVisit(this.visits.findAttendanceByVisitIds(ids)));
 	}
 
 	@RealmLookup(by = "petId", maxKeys = 200)
-	public List<VisitView> byPets(Collection<Integer> petIds, Specification<Visit> where, Sort sort) {
+	public List<VisitView> byPets(Collection<Integer> petIds, Sort sort) {
 		Map<Integer, Integer> petOfVisit = petOfVisit(this.visits.findAttendanceByPetIds(petIds));
-		return views(petOfVisit.keySet(), where, sort, petOfVisit);
+		return views(petOfVisit.keySet(), sort, petOfVisit);
 	}
 
-	private List<VisitView> views(Collection<Integer> visitIds, Specification<Visit> where, Sort sort,
-			Map<Integer, Integer> petOfVisit) {
+	private List<VisitView> views(Collection<Integer> visitIds, Sort sort, Map<Integer, Integer> petOfVisit) {
 		if (visitIds.isEmpty()) {
 			return List.of();
 		}
-		Specification<Visit> idIn = (root, query, cb) -> root.get("id").in(visitIds);
-		return this.visits.findAll(idIn.and(where), sort)
+		return this.visits.findByIdIn(visitIds, sort)
 			.stream()
 			.map(visit -> VisitView.of(visit, petOfVisit.get(visit.getId())))
 			.toList();

@@ -22,13 +22,12 @@ import java.util.stream.Collectors;
 
 import com.embabel.publisher.annotation.RealmLookup;
 
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Pets, for Embabel worlds: by id, and by owner, each with the world's filter applied in
- * the database.
+ * Pets, for Embabel worlds: by id, and by owner. An owner has a handful of pets, so the
+ * publisher applies the world's filter to what these return.
  */
 @Service
 @Transactional(readOnly = true)
@@ -41,27 +40,22 @@ public class PetService {
 	}
 
 	@RealmLookup(by = "id", maxKeys = 500)
-	public List<PetView> byIds(Collection<Integer> ids, Specification<Pet> where) {
+	public List<PetView> byIds(Collection<Integer> ids) {
 		Map<Integer, Integer> ownerOfPet = ownerOfPet(this.pets.findOwnershipByPetIds(ids));
-		return views(ids, where, ownerOfPet);
+		return views(ids, ownerOfPet);
 	}
 
 	@RealmLookup(by = "ownerId", maxKeys = 200)
-	public List<PetView> byOwners(Collection<Integer> ownerIds, Specification<Pet> where) {
+	public List<PetView> byOwners(Collection<Integer> ownerIds) {
 		Map<Integer, Integer> ownerOfPet = ownerOfPet(this.pets.findOwnershipByOwnerIds(ownerIds));
-		return views(ownerOfPet.keySet(), where, ownerOfPet);
+		return views(ownerOfPet.keySet(), ownerOfPet);
 	}
 
-	private List<PetView> views(Collection<Integer> petIds, Specification<Pet> where,
-			Map<Integer, Integer> ownerOfPet) {
+	private List<PetView> views(Collection<Integer> petIds, Map<Integer, Integer> ownerOfPet) {
 		if (petIds.isEmpty()) {
 			return List.of();
 		}
-		Specification<Pet> idIn = (root, query, cb) -> root.get("id").in(petIds);
-		return this.pets.findAll(idIn.and(where))
-			.stream()
-			.map(pet -> PetView.of(pet, ownerOfPet.get(pet.getId())))
-			.toList();
+		return this.pets.findAllById(petIds).stream().map(pet -> PetView.of(pet, ownerOfPet.get(pet.getId()))).toList();
 	}
 
 	private static Map<Integer, Integer> ownerOfPet(List<PetRepository.Ownership> ownership) {

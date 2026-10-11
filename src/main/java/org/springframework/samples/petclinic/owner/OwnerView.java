@@ -16,19 +16,18 @@
 package org.springframework.samples.petclinic.owner;
 
 import com.embabel.publisher.annotation.RealmType;
-import com.embabel.publisher.where.Op;
 import com.fasterxml.jackson.annotation.JsonClassDescription;
 
 /**
  * An {@link Owner} as Embabel worlds see it: the owner's own fields, without their pets,
- * which are a type of their own.
+ * which are a type of their own. What a world may filter owners by is what
+ * {@link OwnerService}'s search takes.
  */
 @RealmType(name = "Owner", entity = Owner.class,
 		cache = @RealmType.Cache(value = RealmType.Scope.SHARED, ttlSeconds = 60, negativeTtlSeconds = 300))
 @JsonClassDescription("A pet owner registered with the clinic.")
-public record OwnerView(@RealmType.Id Integer id, String firstName, @RealmType.Filterable( {
-		Op.EQ, Op.IN, Op.PREFIX, Op.IEQ, Op.IPREFIX }) @RealmType.Sortable String lastName, String address,
-		@RealmType.Filterable({ Op.EQ, Op.IN }) @RealmType.Sortable String city, String telephone){
+public record OwnerView(@RealmType.Id Integer id, String firstName, @RealmType.Sortable String lastName, String address,
+		@RealmType.Sortable String city, String telephone) {
 
 	static OwnerView of(Owner owner) {
 		return new OwnerView(owner.getId(), owner.getFirstName(), owner.getLastName(), owner.getAddress(),
