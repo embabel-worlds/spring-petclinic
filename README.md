@@ -1,3 +1,73 @@
+# Spring PetClinic, published to Embabel Worlds
+
+This is [Embabel](https://worlds.embabel.com)'s fork of [Spring PetClinic](https://github.com/spring-projects/spring-petclinic). It adds one thing: the clinic **publishes itself to Embabel worlds as a realm**, through the open [Realm Publishing Protocol](https://github.com/embabel-worlds/publisher/blob/main/spec/PROTOCOL.md).
+
+To install it, a world needs only the clinic's URL and a token. The world then sees the owners, pets, visits and vets the clinic chose to expose. It can query and join them with everything else it knows, and it can propose changes that go through the clinic's own rules, with a person's approval where the clinic asks for one. To find out more about Embabel Worlds, see **[worlds.embabel.com](https://worlds.embabel.com)**.
+
+Everything below the line is upstream PetClinic's own documentation, unchanged.
+
+## What was added, and why
+
+The adoption adds 14 files and changes no existing behaviour. PetClinic's controllers, templates and tests are untouched.
+
+| Added | Why |
+|---|---|
+| The `embabel-publisher-spring-boot-starter` dependency in `pom.xml` | It serves the protocol at `/embabel`. |
+| `embabel.realm.*` in `application.properties` | The realm's name, title and description, as a world shows them. |
+| `OwnerView`, `PetView`, `VisitView`, `VetView` | **Views, not entities.** The world sees the shape the clinic chooses to publish, never its persistence model. |
+| `OwnerService`, `PetService`, `VisitService`, `VetService` | **The service layer, not the repositories.** PetClinic's controllers call repositories directly, so the adoption adds services for exactly what the world may see. Transactions and validation live in those services. |
+| `PetRepository`, `VisitRepository`, and `VetRepository.findByIdIn` | **Batched lookups.** A world asks for many records at once, never one call per key. |
+| `EmbabelRealmTests` | Checks what the clinic publishes. |
+
+**What the world sees:**
+- **Types:** `Owner`, `Pet`, `Visit` and `Vet`, joined by the clinic's own references (an owner owns pets, and a pet has visits).
+- **Owner search:** a world searching owners by last-name prefix is answered by PetClinic's **existing** search method, `findByLastNameStartingWith`, wrapped by `OwnerService`. Any other filter is evaluated by the world over what comes back. We chose not to give the repository `JpaSpecificationExecutor`, which would open it to arbitrary queries and deletes. A Spring Data `Specification` is a last resort, for when a developer wants richer pushdown and accepts that cost.
+- **`addVisit`:** records a visit, with the booking form's own rule that a visit can't be in the past.
+- **`updateOwnerContact`:** changes an owner's address, city or telephone, and **always needs a person's approval**. The world holds each call until someone approves it, and records it when the person who asked approves it themselves.
+
+**Two switches:**
+- **The world's token:** the clinic accepts a world only with the token in `EMBABEL_REALM_AUTH_TOKEN`. Without it, every protocol call is refused.
+- **Off:** `EMBABEL_REALM_ENABLED=false` turns all publication off, whatever the configuration says. Every protocol path then answers `PUBLISHER_DISABLED`, and nothing is sent.
+
+**Why PetClinic?** It's the Spring application every Java developer knows, and it's thin. Its reads are plain tables, so a world could read its database directly just as well. The publisher earns its keep on the parts a database connection can't offer:
+- operations that go through the application's rules, like `addVisit`'s date check;
+- approvals for changes like `updateOwnerContact`;
+- a published shape that survives schema changes.
+
+An application with real logic on its read side, such as per-user authorization, derived status or data from several stores, gains much more.
+
+## Running it as a publisher
+
+The starter isn't on Maven Central yet, so build it first from [embabel-worlds/publisher](https://github.com/embabel-worlds/publisher):
+
+```bash
+git clone https://github.com/embabel-worlds/publisher.git
+(cd publisher/libs/java && ./mvnw install)      # or: mvn install
+```
+
+Then run the clinic with a token of your choosing:
+
+```bash
+EMBABEL_REALM_AUTH_TOKEN=change-me ./mvnw spring-boot:run
+curl -H "Authorization: Bearer change-me" http://localhost:8080/embabel   # the manifest
+```
+
+To install it into a world:
+1. Store the token in your wallet.
+2. Give the world the URL `http://<host>:8080/embabel`, naming the wallet key that holds the token.
+
+From then on the world queries the clinic live.
+
+Only the Maven build includes the publisher. The Gradle build runs plain PetClinic.
+
+**More:**
+- [The protocol](https://github.com/embabel-worlds/publisher/blob/main/spec/PROTOCOL.md)
+- [The Spring starter's programming model](https://github.com/embabel-worlds/publisher/blob/main/libs/java/spring-boot-starter/README.md)
+- [The adoption skill](https://github.com/embabel-worlds/publisher/blob/main/skill/embabel-realm-publisher/SKILL.md): a coding agent used it to make these changes
+- [Embabel Worlds](https://worlds.embabel.com)
+
+---
+
 # Spring PetClinic Sample Application [![Build Status](https://github.com/spring-projects/spring-petclinic/actions/workflows/maven-build.yml/badge.svg)](https://github.com/spring-projects/spring-petclinic/actions/workflows/maven-build.yml)[![Build Status](https://github.com/spring-projects/spring-petclinic/actions/workflows/gradle-build.yml/badge.svg)](https://github.com/spring-projects/spring-petclinic/actions/workflows/gradle-build.yml)
 
 [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/spring-projects/spring-petclinic) [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=7517918)
